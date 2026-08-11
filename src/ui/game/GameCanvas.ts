@@ -133,11 +133,13 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
       );
     }
     context.restore();
-    context.beginPath();
-    context.arc(screenPosition.x, screenPosition.y, PLAYER_RADIUS, 0, Math.PI * 2);
-    context.strokeStyle = "#14171c";
-    context.lineWidth = 2;
-    context.stroke();
+    if (isSeeker) {
+      context.beginPath();
+      context.arc(screenPosition.x, screenPosition.y, PLAYER_RADIUS, 0, Math.PI * 2);
+      context.strokeStyle = "#14171c";
+      context.lineWidth = 2;
+      context.stroke();
+    }
   };
 
   let lastCameraTopLeft: Vector2 = { x: 0, y: 0 };
@@ -204,9 +206,11 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
     const phase = getRoundPhase(currentRound, Date.now());
     if (phase !== "seek" || !isSelfSeeker()) return;
 
+    const scaleX = canvas.width / canvas.clientWidth;
+    const scaleY = canvas.height / canvas.clientHeight;
     const worldClick: Vector2 = {
-      x: event.offsetX + lastCameraTopLeft.x,
-      y: event.offsetY + lastCameraTopLeft.y,
+      x: event.offsetX * scaleX + lastCameraTopLeft.x,
+      y: event.offsetY * scaleY + lastCameraTopLeft.y,
     };
 
     let closestHiderId: string | null = null;

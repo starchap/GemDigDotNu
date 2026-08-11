@@ -34,6 +34,7 @@ export interface GameCanvasHandle {
 const VIEWPORT_WIDTH = 360;
 const VIEWPORT_HEIGHT = 270;
 const POSITION_SEND_INTERVAL_MS = 50;
+const CATCH_HIT_RADIUS = PLAYER_RADIUS + 6;
 
 const KEY_TO_DIRECTION: Record<string, keyof MovementInput> = {
   ArrowUp: "up",
@@ -99,6 +100,7 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
   let paintPanelDispose: (() => void) | null = null;
   let currentRound = props.round;
   let currentPlayers = props.players;
+  let wasSeeker = currentRound.seekerIds.includes(props.selfPlayerId);
   const remotePositions = new Map<string, Vector2>();
   const remoteSpriteImages = new Map<string, HTMLImageElement>();
 
@@ -133,13 +135,6 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
       );
     }
     context.restore();
-    if (isSeeker) {
-      context.beginPath();
-      context.arc(screenPosition.x, screenPosition.y, PLAYER_RADIUS, 0, Math.PI * 2);
-      context.strokeStyle = "#14171c";
-      context.lineWidth = 2;
-      context.stroke();
-    }
   };
 
   let lastCameraTopLeft: Vector2 = { x: 0, y: 0 };
@@ -206,15 +201,16 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
     const phase = getRoundPhase(currentRound, Date.now());
     if (phase !== "seek" || !isSelfSeeker()) return;
 
-    const scaleX = canvas.width / canvas.clientWidth;
-    const scaleY = canvas.height / canvas.clientHeight;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     const worldClick: Vector2 = {
-      x: event.offsetX * scaleX + lastCameraTopLeft.x,
-      y: event.offsetY * scaleY + lastCameraTopLeft.y,
+      x: (event.clientX - rect.left) * scaleX + lastCameraTopLeft.x,
+      y: (event.clientY - rect.top) * scaleY + lastCameraTopLeft.y,
     };
 
     let closestHiderId: string | null = null;
-    let closestDistance = PLAYER_RADIUS;
+    let closestDistance = CATCH_HIT_RADIUS;
     for (const hiderId of currentRound.hiderIds) {
       const hiderPosition = remotePositions.get(hiderId);
       if (!hiderPosition) continue;
@@ -265,6 +261,12 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
     update(round, players) {
       currentRound = round;
       currentPlayers = players;
+      const nowSeeker = round.seekerIds.includes(props.selfPlayerId);
+      if (nowSeeker && !wasSeeker) {
+        position = { x: mapBounds.x / 2, y: mapBounds.y / 2 };
+        props.session.sendPosition(position);
+      }
+      wasSeeker = nowSeeker;
     },
   };
 }

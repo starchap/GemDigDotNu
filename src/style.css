@@ -1,0 +1,196 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #14171c;
+  color: #e8eaed;
+}
+
+#app {
+  width: min(420px, 90vw);
+  padding: 2rem;
+  border-radius: 12px;
+  background: #1d2127;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 1.4rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+input {
+  padding: 0.6rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid #3a3f47;
+  background: #12151a;
+  color: inherit;
+  font-size: 1rem;
+}
+
+button {
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: #4c7cf3;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #3a3f47;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid #3a3f47;
+  color: inherit;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.invite-id {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0.6rem 0;
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.player-list li {
+  padding: 0.5rem 0.7rem;
+  background: #12151a;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.host-badge {
+  font-size: 0.75rem;
+  color: #8fa6d6;
+}
+
+.error {
+  color: #f36c6c;
+  font-size: 0.9rem;
+  margin-top: -0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: #9aa0a8;
+}
+
+.round-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 5rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.round-spin-name {
+  font-size: 1.8rem;
+  color: #8fa6d6;
+}
+
+.round-countdown-number {
+  font-size: 4rem;
+  color: #e8eaed;
+}
+
+.role-banner {
+  font-size: 1.6rem;
+  border-radius: 8px;
+  padding: 1.2rem;
+}
+
+.role-seeker {
+  background: rgba(243, 108, 108, 0.15);
+  color: #f36c6c;
+}
+
+.role-hider {
+  background: rgba(76, 124, 243, 0.15);
+  color: #8fa6d6;
+}
+
+.map-preview {
+  max-width: 100%;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #000;
+}
+
+.game-canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+.paint-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.paint-canvas {
+  image-rendering: pixelated;
+  border-radius: 6px;
+  border: 1px solid #3a3f47;
+  background: #12151a;
+  cursor: crosshair;
+}
+
+.paint-budget-bar {
+  width: 196px;
+  height: 8px;
+  border-radius: 4px;
+  background: #12151a;
+  overflow: hidden;
+}
+
+.paint-budget-fill {
+  height: 100%;
+  width: 100%;
+  background: #4c7cf3;
+  transition: width 0.1s linear;
+}

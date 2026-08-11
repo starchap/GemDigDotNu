@@ -1,0 +1,24 @@
+{
+  "name": "camo-hide-and-seek",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:lan": "vite --host",
+    "build": "tsc -b && vite build",
+    "build:server": "tsc -p server/tsconfig.json",
+    "preview": "vite preview",
+    "start": "node dist-server/relay.js",
+    "typecheck": "tsc -b --noEmit && tsc -p server/tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

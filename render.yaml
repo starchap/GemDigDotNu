@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: camo-hide-and-seek
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build && npm run build:server
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.9.0

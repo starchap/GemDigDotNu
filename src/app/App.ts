@@ -9,7 +9,7 @@ import { renderHomeScreen } from "../ui/screens/HomeScreen";
 import { renderCreateLobbyScreen } from "../ui/screens/CreateLobbyScreen";
 import { renderJoinLobbyScreen } from "../ui/screens/JoinLobbyScreen";
 import { renderLobbyScreen } from "../ui/screens/LobbyScreen";
-import { renderRoundScreen } from "../ui/screens/RoundScreen";
+import { renderRoundScreen, type RoundScreenHandle } from "../ui/screens/RoundScreen";
 
 function relayUrl(): string {
   const configured = import.meta.env.VITE_RELAY_URL;
@@ -27,7 +27,7 @@ export class App {
   private player: Player | null = null;
   private hostSession: HostLobbySession | null = null;
   private guestSession: GuestLobbySession | null = null;
-  private roundScreenDispose: (() => void) | null = null;
+  private roundScreenHandle: RoundScreenHandle | null = null;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -84,17 +84,21 @@ export class App {
     const isHost = session instanceof HostLobbySession;
 
     session.onStateChange((snapshot: LobbySnapshot) => {
-      this.roundScreenDispose?.();
-      this.roundScreenDispose = null;
-
       if (snapshot.status === "started" && snapshot.round) {
-        this.roundScreenDispose = renderRoundScreen(this.root, {
-          snapshot,
-          selfPlayerId: this.player!.id,
-          session,
-        });
+        if (this.roundScreenHandle) {
+          this.roundScreenHandle.update(snapshot);
+        } else {
+          this.roundScreenHandle = renderRoundScreen(this.root, {
+            snapshot,
+            selfPlayerId: this.player!.id,
+            session,
+          });
+        }
         return;
       }
+
+      this.roundScreenHandle?.dispose();
+      this.roundScreenHandle = null;
 
       renderLobbyScreen(this.root, {
         snapshot,

@@ -8,4 +8,5 @@ export type LobbyMessage =
   | { type: "start" }
   | { type: "state"; snapshot: LobbySnapshot }
   | { type: "position"; playerId: string; position: Vector2 }
-  | { type: "paint"; playerId: string; imageDataUrl: string };
+  | { type: "paint"; playerId: string; imageDataUrl: string }
+  | { type: "catch"; hiderId: string };

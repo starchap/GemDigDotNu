@@ -14,12 +14,21 @@ export interface PaintChannel {
   onPaintUpdate(listener: (playerId: string, imageDataUrl: string) => void): void;
 }
 
+export interface CatchChannel {
+  sendCatch(hiderId: string): void;
+}
+
 export interface GameCanvasProps {
   round: RoundSnapshot;
   role: "seeker" | "hider";
   selfPlayerId: string;
   players: Player[];
-  session: PositionChannel & PaintChannel;
+  session: PositionChannel & PaintChannel & CatchChannel;
+}
+
+export interface GameCanvasHandle {
+  dispose(): void;
+  update(round: RoundSnapshot, players: Player[]): void;
 }
 
 const VIEWPORT_WIDTH = 360;
@@ -43,7 +52,11 @@ function loadImage(dataUrl: string): HTMLImageElement {
   return image;
 }
 
-export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): () => void {
+function distance(a: Vector2, b: Vector2): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): GameCanvasHandle {
   const wrapper = document.createElement("div");
   wrapper.className = "game-canvas-wrapper";
   root.appendChild(wrapper);
@@ -84,6 +97,8 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): () =
   let mapBounds: Vector2 = { x: 0, y: 0 };
   let selfSpriteImage: HTMLImageElement | null = null;
   let paintPanelDispose: (() => void) | null = null;
+  let currentRound = props.round;
+  let currentPlayers = props.players;
   const remotePositions = new Map<string, Vector2>();
   const remoteSpriteImages = new Map<string, HTMLImageElement>();
 
@@ -125,12 +140,18 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): () =
     context.stroke();
   };
 
+  let lastCameraTopLeft: Vector2 = { x: 0, y: 0 };
+
+  const isSelfSeeker = () => currentRound.seekerIds.includes(props.selfPlayerId);
+
   const draw = () => {
-    const phase = getRoundPhase(props.round, Date.now());
+    const phase = getRoundPhase(currentRound, Date.now());
     const viewport: Vector2 = { x: canvas.width, y: canvas.height };
     const cameraTopLeft = computeCameraTopLeft(position, viewport, mapBounds);
+    lastCameraTopLeft = cameraTopLeft;
+    const selfIsSeeker = isSelfSeeker();
 
-    if (props.role === "hider" && phase === "hide" && !paintPanelDispose) {
+    if (!selfIsSeeker && phase === "hide" && !paintPanelDispose) {
       paintPanelDispose = mountPaintPanel(paintPanelSlot, {
         onPaintChange: (imageDataUrl) => {
           selfSpriteImage = loadImage(imageDataUrl);
@@ -156,13 +177,13 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): () =
     );
 
     if (phase !== "hide") {
-      for (const player of props.players) {
+      for (const player of currentPlayers) {
         if (player.id === props.selfPlayerId) continue;
         const remotePosition = remotePositions.get(player.id);
         if (!remotePosition) continue;
         drawPlayerSprite(
           { x: remotePosition.x - cameraTopLeft.x, y: remotePosition.y - cameraTopLeft.y },
-          player.id === props.round.seekerId,
+          currentRound.seekerIds.includes(player.id),
           remoteSpriteImages.get(player.id) ?? null,
         );
       }
@@ -170,14 +191,41 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): () =
 
     drawPlayerSprite(
       { x: position.x - cameraTopLeft.x, y: position.y - cameraTopLeft.y },
-      props.role === "seeker",
+      selfIsSeeker,
       selfSpriteImage,
     );
 
     context.fillStyle = "#e8eaed";
     context.font = "bold 14px system-ui, sans-serif";
-    context.fillText(props.role === "seeker" ? "SEEKER" : "HIDER", 10, 20);
+    context.fillText(selfIsSeeker ? "SEEKER" : "HIDER", 10, 20);
   };
+
+  const onCanvasClick = (event: MouseEvent) => {
+    const phase = getRoundPhase(currentRound, Date.now());
+    if (phase !== "seek" || !isSelfSeeker()) return;
+
+    const worldClick: Vector2 = {
+      x: event.offsetX + lastCameraTopLeft.x,
+      y: event.offsetY + lastCameraTopLeft.y,
+    };
+
+    let closestHiderId: string | null = null;
+    let closestDistance = PLAYER_RADIUS;
+    for (const hiderId of currentRound.hiderIds) {
+      const hiderPosition = remotePositions.get(hiderId);
+      if (!hiderPosition) continue;
+      const hiderDistance = distance(worldClick, hiderPosition);
+      if (hiderDistance <= closestDistance) {
+        closestDistance = hiderDistance;
+        closestHiderId = hiderId;
+      }
+    }
+
+    if (closestHiderId) {
+      props.session.sendCatch(closestHiderId);
+    }
+  };
+  canvas.addEventListener("click", onCanvasClick);
 
   const loop = (timestamp: number) => {
     if (disposed) return;
@@ -201,11 +249,18 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): () =
   };
   image.src = props.round.mapImageDataUrl;
 
-  return () => {
-    disposed = true;
-    window.cancelAnimationFrame(animationFrameId);
-    window.removeEventListener("keydown", onKeyDown);
-    window.removeEventListener("keyup", onKeyUp);
-    paintPanelDispose?.();
+  return {
+    dispose() {
+      disposed = true;
+      window.cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      canvas.removeEventListener("click", onCanvasClick);
+      paintPanelDispose?.();
+    },
+    update(round, players) {
+      currentRound = round;
+      currentPlayers = players;
+    },
   };
 }

@@ -39,6 +39,10 @@ export class GuestLobbySession {
     this.paintListeners.push(listener);
   }
 
+  sendCatch(hiderId: string): void {
+    this.transport.send({ type: "catch", hiderId });
+  }
+
   close(): void {
     this.transport.close();
   }

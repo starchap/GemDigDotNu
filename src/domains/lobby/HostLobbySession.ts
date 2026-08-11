@@ -56,6 +56,16 @@ export class HostLobbySession {
     this.broadcastState();
   }
 
+  sendCatch(hiderId: string): void {
+    this.lobby.catchHider(hiderId);
+    this.broadcastState();
+  }
+
+  returnToLobby(): void {
+    this.lobby.returnToLobby();
+    this.broadcastState();
+  }
+
   close(): void {
     this.transport.close();
   }
@@ -78,6 +88,9 @@ export class HostLobbySession {
       for (const listener of this.paintListeners) {
         listener(message.playerId, message.imageDataUrl);
       }
+    } else if (message.type === "catch") {
+      this.lobby.catchHider(message.hiderId);
+      this.broadcastState();
     }
   }
 

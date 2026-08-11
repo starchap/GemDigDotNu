@@ -3,6 +3,7 @@ import {
   SPIN_DURATION_MS,
   COUNTDOWN_DURATION_MS,
   HIDE_DURATION_MS,
+  SEEK_DURATION_MS,
   type RoundSnapshot,
 } from "../round/Round";
 
@@ -77,16 +78,31 @@ export class Lobby {
     const spinEndsAt = now + SPIN_DURATION_MS;
     const countdownEndsAt = spinEndsAt + COUNTDOWN_DURATION_MS;
     const hideEndsAt = countdownEndsAt + HIDE_DURATION_MS;
+    const seekEndsAt = hideEndsAt + SEEK_DURATION_MS;
 
     this.round = {
-      seekerId: seeker.id,
+      seekerIds: [seeker.id],
       hiderIds,
       spinEndsAt,
       countdownEndsAt,
       hideEndsAt,
+      seekEndsAt,
       mapImageDataUrl: this.mapImageDataUrl,
     };
     this.status = "started";
+  }
+
+  catchHider(hiderId: string): void {
+    if (!this.round) return;
+    const hiderIndex = this.round.hiderIds.indexOf(hiderId);
+    if (hiderIndex === -1) return;
+    this.round.hiderIds.splice(hiderIndex, 1);
+    this.round.seekerIds.push(hiderId);
+  }
+
+  returnToLobby(): void {
+    this.status = "waiting";
+    this.round = null;
   }
 
   toSnapshot(): LobbySnapshot {

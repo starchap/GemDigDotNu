@@ -87,3 +87,82 @@ Getting the static-file fallback right without pulling in Express: a bare `node:
 - Document the local two-process dev workflow (run `vite` for the client and `node --experimental-strip-types server/relay.ts` or similar for the relay, with `VITE_RELAY_URL` pointing at it) — right now local dev either runs the full build+start pipeline or falls back to the now-orphaned `BroadcastChannelTransport`/`InMemoryTransport` for same-machine testing.
 - Actual deploy to Render and a real two-machine playtest (needs the user's Render account) is called out in the plan's verification section but wasn't done in this session.
 - Consider wrapping the relay's handshake `JSON.parse` in a try/catch so a malformed first message closes the socket cleanly instead of throwing inside the `message` event handler.
+
+## Step 3: Initialize git and push to GitHub
+
+**Author:** main
+
+### Prompt Context
+
+**Verbatim prompt:** "please push what we got right now to https://github.com/starchap/GemDigDotNu.git this is a totally new fresh repo, no commits yet"
+
+**Interpretation:** The project had no git repo at all yet (confirmed via `git status` failing with "not a git repository"). The user wants everything currently on disk committed and pushed as the first commit to an already-created, empty GitHub repo.
+
+**Inferred intent:** Get the current state (game + new multiplayer relay work) backed up and shareable on GitHub, presumably so it can be deployed from there or reviewed/collaborated on.
+
+### What I did
+Ran `git init` in `/Users/mikkel/Development/Greenfield Development` and renamed the default branch to `main`. Staged everything with `git add -A` and reviewed `git status` before committing, per the safety habit of checking what's actually staged. Noticed `CLAUDE.md` and the whole `docs/` folder (including all diary entries) were silently missing from the staged list; `git check-ignore -v` traced this to the user's `~/.gitignore_global` (lines 14 and 22), which excludes `CLAUDE.md` and `docs/*` in every repo on this machine. Since that's a deliberate cross-project policy and not something to override silently, asked the user via `AskUserQuestion` whether to respect it or force-include those files for this push. User chose to include them, so I ran `git add -f CLAUDE.md docs/` to stage them despite the global ignore. Also noticed `tsconfig.tsbuildinfo` (a build artifact) had been swept up by `git add -A`; unstaged it with `git rm --cached`, deleted the local file, and added `*.tsbuildinfo` to `/.gitignore` so it won't reappear. Committed all 43 files as the root commit, added the `origin` remote pointing at `https://github.com/starchap/GemDigDotNu.git`, and attempted `git push -u origin main`.
+
+### Why
+Confirming what's staged before committing (rather than blindly trusting `add -A`) is the standard safety practice for avoiding accidental secret leaks or unwanted files in a first commit to a shared remote. Asking about the gitignore override specifically matters because global gitignore rules represent a considered, repo-independent choice by the user (likely to keep internal planning docs out of public repos by default) — overriding it without asking would go against that intent.
+
+### What worked
+The `AskUserQuestion` pause caught a real discrepancy the user likely didn't know about (that CLAUDE.md/docs get silently excluded everywhere by default) and got an explicit, informed decision instead of a guess either way.
+
+### What didn't work
+The first push attempt failed:
+```
+$ git push -u origin main
+fatal: could not read Username for 'https://github.com': Device not configured
+```
+This is a non-interactive shell with no stored HTTPS credentials, so git couldn't prompt for a username/password/token. Checked `gh auth status` and found the `gh` CLI was already authenticated as `starchap` with `Git operations protocol: ssh`. Switched the remote from HTTPS to SSH with `git remote set-url origin git@github.com:starchap/GemDigDotNu.git` and re-ran `git push -u origin main`, which succeeded (`* [new branch] main -> main`).
+
+### What I learned
+`gh auth status` reports which git protocol (`ssh` vs `https`) the authenticated `gh` account is configured to use for git operations — checking that first would have avoided the failed HTTPS attempt entirely. Also, `git check-ignore -v <path>...` is the fast way to find exactly which gitignore file and line is excluding a given path when a file mysteriously doesn't show up under `git add -A`.
+
+### What was tricky
+Nothing structurally tricky — the only friction was the two false starts (silently-ignored files, then the wrong remote protocol), both resolved by checking state (`git check-ignore -v`, `gh auth status`) rather than guessing.
+
+### What warrants review
+Confirm the decision to include `CLAUDE.md` and `docs/diary/*.md` in this now-public(?) repo is still what's wanted long-term — it was a one-time override of a global default, not a change to the global gitignore itself, so future repos on this machine will still exclude them unless asked again.
+
+### Future work
+None beyond what Step 2 already captured — this step was purely getting the existing work into git/GitHub, not new implementation.
+
+## Step 4: Fix Render deploy — server bundle never got built
+
+**Author:** main
+
+### Prompt Context
+
+**Verbatim prompt:** Pasted Render deploy logs showing the build stage running only `tsc -b && vite build` (the client), then a successful "Build successful 🎉" / "Deploying...", followed by the start stage crashing: `Error: Cannot find module '/opt/render/project/src/dist-server/relay.js'` with `code: 'MODULE_NOT_FOUND'`, repeated on Render's automatic restart attempt.
+
+**Interpretation:** The deploy's build stage never ran `npm run build:server`, so `dist-server/relay.js` — the file `npm start` (`node dist-server/relay.js`) depends on — was never created, and the container crash-looped.
+
+**Inferred intent:** Get the Render deployment actually working end-to-end.
+
+### What I did
+Re-read the log carefully: only one `npm run <script>` banner appears (`build`), never `build:server`, even though `/render.yaml`'s `buildCommand` was `npm install && npm run build && npm run build:server`. That mismatch means Render is not honoring `render.yaml` for this service — almost certainly because the service was created through Render's dashboard "New Web Service" flow (which autodetects a build/start command from `package.json` and stores it on the service itself) rather than via the Blueprint/`render.yaml` deploy path, so `render.yaml` sitting in the repo is inert unless the service is explicitly reconnected as a Blueprint.
+
+Rather than rely on getting the Render dashboard's stored build command to match `render.yaml` (an out-of-band setting I can't inspect or fix from here), I folded `build:server` into the `build` script itself in `/package.json`: `"build": "tsc -b && vite build && npm run build:server"`. Now any invocation of `npm run build` — autodetected or explicit — produces both `dist/` and `dist-server/relay.js`. Simplified `/render.yaml`'s `buildCommand` back to `npm install && npm run build` to match (still correct, just no longer the load-bearing fix). Verified locally with a from-scratch rebuild: `rm -rf dist dist-server && npm run build` produced `dist-server/relay.js`, and `node dist-server/relay.js` served `HTTP 200` on port 3000.
+
+### Why
+Making the single default `build` script self-sufficient means the fix works regardless of whether Render (or any other host) is invoking the exact custom command from `render.yaml` — it removes a footgun where a dashboard-configured service and a repo's `render.yaml` can silently diverge.
+
+### What worked
+The from-scratch local rebuild reproduced the exact shape of what Render's build step does (fresh `dist`/`dist-server`, no stale artifacts) and confirmed the fix without needing a real Render deploy to verify.
+
+### What didn't work
+N/A — root cause was found from the log evidence alone (absence of the `build:server` banner) without needing further reproduction.
+
+### What I learned
+Render services created via the dashboard "connect a repo" flow store their own build/start command and do **not** automatically read `render.yaml` from the repo — that file only takes effect through Render's explicit "New Blueprint Instance" flow. Since I can't see or edit the user's Render dashboard settings from here, the robust fix is to make `npm run build` alone do everything needed, so it's correct no matter which command Render is actually configured to run.
+
+### What was tricky
+Diagnosing this from logs alone rather than direct access to the Render service's configured build/start command — had to infer the dashboard-vs-blueprint mismatch from the absence of expected output rather than confirming it directly.
+
+### What warrants review
+After redeploying, confirm Render's dashboard build/start command fields (Settings → Build & Deploy on the service) — if they're still hardcoded to something that doesn't run `npm run build`/`npm start` at all, this fix won't help; the user may want to switch this service to a Blueprint deploy from `render.yaml` for the two to stay in sync going forward.
+
+### Future work
+Consider whether to migrate this Render service to a Blueprint-based deploy (delete and recreate from `render.yaml` via Render's "New Blueprint Instance") so `render.yaml` is authoritative and dashboard/repo config can't drift apart again.

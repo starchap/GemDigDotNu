@@ -26,6 +26,31 @@ export function renderLobbyScreen(root: HTMLElement, props: LobbyScreenProps): v
   inviteId.textContent = snapshot.inviteId;
   root.appendChild(inviteId);
 
+  const shareRow = document.createElement("div");
+  shareRow.className = "share-row";
+
+  const shareLinkInput = document.createElement("input");
+  shareLinkInput.type = "text";
+  shareLinkInput.className = "share-link-input";
+  shareLinkInput.readOnly = true;
+  shareLinkInput.value = `${window.location.origin}${window.location.pathname}?lobby=${snapshot.inviteId}`;
+
+  const copyLinkButton = document.createElement("button");
+  copyLinkButton.type = "button";
+  copyLinkButton.className = "secondary";
+  copyLinkButton.textContent = "Copy link";
+  copyLinkButton.addEventListener("click", () => {
+    navigator.clipboard.writeText(shareLinkInput.value).then(() => {
+      copyLinkButton.textContent = "Copied!";
+      window.setTimeout(() => {
+        copyLinkButton.textContent = "Copy link";
+      }, 1500);
+    });
+  });
+
+  shareRow.append(shareLinkInput, copyLinkButton);
+  root.appendChild(shareRow);
+
   const playerList = document.createElement("ul");
   playerList.className = "player-list";
   for (const player of snapshot.players) {

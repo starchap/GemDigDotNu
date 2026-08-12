@@ -22,6 +22,11 @@ function createLobbyTransport(inviteId: string) {
   return new WebSocketTransport<LobbyMessage>(relayUrl(), inviteId);
 }
 
+function inviteIdFromUrl(): string | null {
+  const value = new URLSearchParams(window.location.search).get("lobby");
+  return value ? value.trim().toUpperCase() : null;
+}
+
 export class App {
   private readonly root: HTMLElement;
   private player: Player | null = null;
@@ -41,7 +46,12 @@ export class App {
     renderNameEntryScreen(this.root, {
       onSubmit: (name) => {
         this.player = createPlayer(name);
-        this.showHome();
+        const inviteId = inviteIdFromUrl();
+        if (inviteId) {
+          this.joinLobby(inviteId);
+        } else {
+          this.showHome();
+        }
       },
     });
   }
@@ -68,13 +78,14 @@ export class App {
     renderJoinLobbyScreen(this.root, {
       error,
       onBack: () => this.showHome(),
-      onJoin: (inviteId) => {
-        if (!this.player) return;
-        const session = new GuestLobbySession(this.player, inviteId, createLobbyTransport);
-        this.guestSession = session;
-        this.showLobby();
-      },
+      onJoin: (inviteId) => this.joinLobby(inviteId),
     });
+  }
+
+  private joinLobby(inviteId: string): void {
+    if (!this.player) return;
+    this.guestSession = new GuestLobbySession(this.player, inviteId, createLobbyTransport);
+    this.showLobby();
   }
 
   private showLobby(): void {

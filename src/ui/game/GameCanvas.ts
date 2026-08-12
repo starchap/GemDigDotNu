@@ -31,10 +31,17 @@ export interface GameCanvasHandle {
   update(round: RoundSnapshot, players: Player[]): void;
 }
 
-const VIEWPORT_WIDTH = 360;
-const VIEWPORT_HEIGHT = 270;
+const VIEWPORT_WIDTH = 320;
+const VIEWPORT_HEIGHT = 320;
 const POSITION_SEND_INTERVAL_MS = 50;
 const CATCH_HIT_RADIUS = PLAYER_RADIUS + 6;
+
+const DPAD_DIRECTIONS: Array<{ direction: keyof MovementInput; label: string; gridArea: string }> = [
+  { direction: "up", label: "▲", gridArea: "up" },
+  { direction: "left", label: "◀", gridArea: "left" },
+  { direction: "down", label: "▼", gridArea: "down" },
+  { direction: "right", label: "▶", gridArea: "right" },
+];
 
 const KEY_TO_DIRECTION: Record<string, keyof MovementInput> = {
   ArrowUp: "up",
@@ -89,6 +96,37 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
   };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+
+  const dpad = document.createElement("div");
+  dpad.className = "virtual-dpad";
+  const dpadCleanups: Array<() => void> = [];
+  for (const { direction, label, gridArea } of DPAD_DIRECTIONS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dpad-button";
+    button.style.gridArea = gridArea;
+    button.textContent = label;
+    const press = (event: Event) => {
+      event.preventDefault();
+      input[direction] = true;
+    };
+    const release = (event: Event) => {
+      event.preventDefault();
+      input[direction] = false;
+    };
+    button.addEventListener("pointerdown", press);
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("pointerleave", release);
+    dpadCleanups.push(() => {
+      button.removeEventListener("pointerdown", press);
+      button.removeEventListener("pointerup", release);
+      button.removeEventListener("pointercancel", release);
+      button.removeEventListener("pointerleave", release);
+    });
+    dpad.appendChild(button);
+  }
+  wrapper.appendChild(dpad);
 
   let disposed = false;
   let animationFrameId = 0;
@@ -256,6 +294,7 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       canvas.removeEventListener("click", onCanvasClick);
+      for (const cleanup of dpadCleanups) cleanup();
       paintPanelDispose?.();
     },
     update(round, players) {

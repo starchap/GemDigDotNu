@@ -154,7 +154,8 @@ button.secondary {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 8px;
+  aspect-ratio: 1 / 1;
+  clip-path: circle(50%);
   background: #000;
 }
 
@@ -165,11 +166,78 @@ button.secondary {
   align-items: center;
 }
 
+.virtual-dpad {
+  display: grid;
+  grid-template-columns: 52px 52px 52px;
+  grid-template-rows: 52px 52px 52px;
+  grid-template-areas:
+    ".    up    ."
+    "left .     right"
+    ".    down  .";
+  gap: 6px;
+  touch-action: none;
+  user-select: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .virtual-dpad {
+    display: none;
+  }
+}
+
+.dpad-button {
+  padding: 0;
+  font-size: 1.1rem;
+  background: #2a2f38;
+}
+
 .paint-panel {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   align-items: center;
+}
+
+.paint-color-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #12151a;
+  border: 1px solid #3a3f47;
+  cursor: pointer;
+}
+
+.paint-brush-icon {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.paint-color-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.share-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.share-link-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
 }
 
 .paint-canvas {

@@ -22,10 +22,28 @@ export function mountPaintPanel(root: HTMLElement, props: PaintPanelProps): () =
   canvas.style.height = `${DISPLAY_SIZE_PX}px`;
   panel.appendChild(canvas);
 
+  const colorPickerLabel = document.createElement("label");
+  colorPickerLabel.className = "paint-color-picker";
+  colorPickerLabel.title = "Pick brush color";
+
+  const brushIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  brushIcon.setAttribute("viewBox", "0 0 24 24");
+  brushIcon.setAttribute("class", "paint-brush-icon");
+  brushIcon.innerHTML =
+    '<path d="M20.71 4.63l-1.34-1.34a1 1 0 0 0-1.41 0L9 12.25 11.75 15l8.96-8.96a1 1 0 0 0 0-1.41zM7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3z" fill="currentColor"/>';
+
   const colorInput = document.createElement("input");
   colorInput.type = "color";
   colorInput.value = "#4c7cf3";
-  panel.appendChild(colorInput);
+  colorInput.className = "paint-color-input";
+
+  colorPickerLabel.style.color = colorInput.value;
+  colorInput.addEventListener("input", () => {
+    colorPickerLabel.style.color = colorInput.value;
+  });
+
+  colorPickerLabel.append(brushIcon, colorInput);
+  panel.appendChild(colorPickerLabel);
 
   const budgetBar = document.createElement("div");
   budgetBar.className = "paint-budget-bar";

@@ -1,14 +1,18 @@
 import { PLAYER_RADIUS, SPRITE_DIAMETER } from "../../domains/player/PlayerSprite";
 import { computePaintBudgetPx2, computeStrokeSegmentAreaPx2, PaintBudgetTracker } from "../../domains/paint/PaintBudget";
+import { sampleQuickColors } from "../../domains/paint/ColorSampling";
 import type { Vector2 } from "../../domains/movement/Movement";
 
 export interface PaintPanelProps {
+  mapImageData: ImageData | null;
+  playerPosition: Vector2;
   onPaintChange: (imageDataUrl: string) => void;
 }
 
 const BRUSH_WIDTH_PX = 3;
 const EMIT_THROTTLE_MS = 150;
 const DISPLAY_SIZE_PX = 196;
+const QUICK_COLOR_SAMPLE_RADIUS_PX = PLAYER_RADIUS * 1.5;
 
 export function mountPaintPanel(root: HTMLElement, props: PaintPanelProps): () => void {
   const panel = document.createElement("div");
@@ -21,6 +25,25 @@ export function mountPaintPanel(root: HTMLElement, props: PaintPanelProps): () =
   canvas.style.width = `${DISPLAY_SIZE_PX}px`;
   canvas.style.height = `${DISPLAY_SIZE_PX}px`;
   panel.appendChild(canvas);
+
+  const swatchRow = document.createElement("div");
+  swatchRow.className = "paint-swatch-row";
+  if (props.mapImageData) {
+    const quickColors = sampleQuickColors(props.mapImageData, props.playerPosition, QUICK_COLOR_SAMPLE_RADIUS_PX);
+    for (const color of quickColors) {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "paint-swatch";
+      swatch.style.background = color;
+      swatch.title = color;
+      swatch.addEventListener("click", () => {
+        colorInput.value = color;
+        colorPickerLabel.style.color = color;
+      });
+      swatchRow.appendChild(swatch);
+    }
+  }
+  panel.appendChild(swatchRow);
 
   const colorPickerLabel = document.createElement("label");
   colorPickerLabel.className = "paint-color-picker";

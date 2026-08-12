@@ -64,20 +64,41 @@ function distance(a: Vector2, b: Vector2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function extractImageData(image: HTMLImageElement, size: Vector2): ImageData | null {
+  const offscreenCanvas = document.createElement("canvas");
+  offscreenCanvas.width = size.x;
+  offscreenCanvas.height = size.y;
+  const offscreenContext = offscreenCanvas.getContext("2d");
+  if (!offscreenContext) return null;
+  offscreenContext.drawImage(image, 0, 0);
+  return offscreenContext.getImageData(0, 0, size.x, size.y);
+}
+
 export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): GameCanvasHandle {
   const wrapper = document.createElement("div");
   wrapper.className = "game-canvas-wrapper";
   root.appendChild(wrapper);
 
+  const stage = document.createElement("div");
+  stage.className = "game-canvas-stage";
+  wrapper.appendChild(stage);
+
   const canvas = document.createElement("canvas");
   canvas.className = "game-canvas";
   canvas.width = VIEWPORT_WIDTH;
   canvas.height = VIEWPORT_HEIGHT;
-  wrapper.appendChild(canvas);
+  stage.appendChild(canvas);
 
   const paintPanelSlot = document.createElement("div");
   paintPanelSlot.className = "paint-panel-slot";
-  wrapper.appendChild(paintPanelSlot);
+  stage.appendChild(paintPanelSlot);
+
+  const modeToggleButton = document.createElement("button");
+  modeToggleButton.type = "button";
+  modeToggleButton.className = "mode-toggle-button";
+  modeToggleButton.hidden = true;
+  modeToggleButton.textContent = "🎨 Paint";
+  stage.appendChild(modeToggleButton);
 
   const context = canvas.getContext("2d");
   if (!context) {
@@ -134,8 +155,18 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
   let lastSentAt: number | null = null;
   let position: Vector2 = { x: 0, y: 0 };
   let mapBounds: Vector2 = { x: 0, y: 0 };
+  let mapImageData: ImageData | null = null;
   let selfSpriteImage: HTMLImageElement | null = null;
   let paintPanelDispose: (() => void) | null = null;
+  let mode: "move" | "paint" = "move";
+
+  const onModeToggleClick = () => {
+    mode = mode === "move" ? "paint" : "move";
+    dpad.style.display = mode === "paint" ? "none" : "";
+    modeToggleButton.textContent = mode === "move" ? "🎨 Paint" : "🚶 Move";
+  };
+  modeToggleButton.addEventListener("pointerdown", (event) => event.stopPropagation());
+  modeToggleButton.addEventListener("click", onModeToggleClick);
   let currentRound = props.round;
   let currentPlayers = props.players;
   let wasSeeker = currentRound.seekerIds.includes(props.selfPlayerId);
@@ -185,15 +216,25 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
     const cameraTopLeft = computeCameraTopLeft(position, viewport, mapBounds);
     lastCameraTopLeft = cameraTopLeft;
     const selfIsSeeker = isSelfSeeker();
+    const canPaint = !selfIsSeeker && phase === "hide";
 
-    if (!selfIsSeeker && phase === "hide" && !paintPanelDispose) {
+    modeToggleButton.hidden = !canPaint;
+    if (!canPaint && mode === "paint") {
+      mode = "move";
+      dpad.style.display = "";
+    }
+
+    const shouldShowPaintPanel = canPaint && mode === "paint";
+    if (shouldShowPaintPanel && !paintPanelDispose) {
       paintPanelDispose = mountPaintPanel(paintPanelSlot, {
+        mapImageData,
+        playerPosition: { ...position },
         onPaintChange: (imageDataUrl) => {
           selfSpriteImage = loadImage(imageDataUrl);
           props.session.sendPaint(imageDataUrl);
         },
       });
-    } else if (phase !== "hide" && paintPanelDispose) {
+    } else if (!shouldShowPaintPanel && paintPanelDispose) {
       paintPanelDispose();
       paintPanelDispose = null;
     }
@@ -283,6 +324,7 @@ export function mountGameCanvas(root: HTMLElement, props: GameCanvasProps): Game
     if (disposed) return;
     mapBounds = { x: image.naturalWidth, y: image.naturalHeight };
     position = { x: mapBounds.x / 2, y: mapBounds.y / 2 };
+    mapImageData = extractImageData(image, mapBounds);
     animationFrameId = window.requestAnimationFrame(loop);
   };
   image.src = props.round.mapImageDataUrl;

@@ -31,8 +31,8 @@ export interface GameCanvasHandle {
   update(round: RoundSnapshot, players: Player[]): void;
 }
 
-const VIEWPORT_WIDTH = 320;
-const VIEWPORT_HEIGHT = 320;
+const VIEWPORT_WIDTH = 360;
+const VIEWPORT_HEIGHT = 270;
 const POSITION_SEND_INTERVAL_MS = 50;
 const CATCH_HIT_RADIUS = PLAYER_RADIUS + 6;
 
